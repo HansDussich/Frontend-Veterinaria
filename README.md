@@ -10,7 +10,7 @@
 git clone https://github.com/HansDussich/Frontend-Veterinaria/
 
 #  2: NNavega al directorio del proyecto
-cd Frontend.Veterinaria
+cd Frontend-Veterinaria
 
 # 3: Instala las dependencias necesarias
 npm i
