@@ -19,7 +19,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check if user is already logged in via localStorage
     const storedUser = localStorage.getItem('currentUser');
     if (storedUser) {
       setCurrentUser(JSON.parse(storedUser));
@@ -31,44 +30,60 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     
     try {
-      const response = await fetch('https://veterinariaapi.somee.com/api/usuarios');
-      const users = await response.json();
+      // Paso 1: Verificar credenciales
+      const loginResponse = await fetch(`https://veterinariaapi.somee.com/api/usuarios/login/${username}/${password}`);
       
-      const user = users.find((u: any) => u.nombreUsuario === username && u.contraseña === password);
-      
-      if (user) {
-        const formattedUser: User = {
-          id: user.usuarioId.toString(),
-          name: user.nombreUsuario,
-          email: user.email,
-          role: user.rol as UserRole,
-        };
-        
-        setCurrentUser(formattedUser);
-        localStorage.setItem('currentUser', JSON.stringify(formattedUser));
-        toast({
-          title: '¡Bienvenido!',
-          description: `Has iniciado sesión como ${formattedUser.name}.`,
-        });
-        setIsLoading(false);
-        return true;
+      if (!loginResponse.ok) {
+        throw new Error('Error al verificar credenciales');
       }
+
+      const isValid = await loginResponse.json();
+
+      if (!isValid) {
+        toast({
+          title: 'Error de inicio de sesión',
+          description: 'Usuario o contraseña incorrectos.',
+          variant: 'destructive',
+        });
+        return false;
+      }
+
+      // Paso 2: Obtener datos del usuario
+      const usersResponse = await fetch('https://veterinariaapi.somee.com/api/usuarios');
+      const users = await usersResponse.json();
       
-      toast({
-        title: 'Error de inicio de sesión',
-        description: 'Usuario o contraseña incorrectos.',
-        variant: 'destructive',
-      });
-      setIsLoading(false);
-      return false;
+      const user = users.find((u: any) => u.nombreUsuario === username);
+      
+      if (!user) {
+        toast({
+          title: 'Error de inicio de sesión',
+          description: 'Usuario no encontrado en el sistema.',
+          variant: 'destructive',
+        });
+        return false;
+      }
+
+      const formattedUser: User = {
+        id: user.usuarioId.toString(),
+        name: user.nombreUsuario,
+        email: user.email,
+        role: user.rol as UserRole,
+      };
+      
+      setCurrentUser(formattedUser);
+      localStorage.setItem('currentUser', JSON.stringify(formattedUser));
+      return true;
+
     } catch (error) {
+      console.error('Login error:', error);
       toast({
         title: 'Error de conexión',
         description: 'No se pudo conectar con el servidor.',
         variant: 'destructive',
       });
-      setIsLoading(false);
       return false;
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -86,27 +101,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return requiredRoles.includes(currentUser.role);
   };
 
-  // Sistema de permisos por características específicas según el rol
   const hasFeatureAccess = (feature: 'billing_view' | 'billing_create' | 'billing_payment' | 'financial_stats' | 'medical_diagnosis' | 'products_pricing'): boolean => {
     if (!currentUser) return false;
     
     const accessMap = {
-      // Ver facturación (admin y recepcionista)
       billing_view: ['Admin', 'Recepcionista'],
-      
-      // Crear facturas (solo recepcionista y admin)
       billing_create: ['Admin', 'Recepcionista'],
-      
-      // Registrar pagos (solo recepcionista y admin)
       billing_payment: ['Admin', 'Recepcionista'],
-      
-      // Ver estadísticas financieras (solo admin)
       financial_stats: ['Admin'],
-      
-      // Registrar diagnóstico médico (veterinario y admin)
       medical_diagnosis: ['Admin', 'Veterinario'],
-      
-      // Ver precios de productos y servicios (admin y recepcionista)
       products_pricing: ['Admin', 'Recepcionista']
     };
     
