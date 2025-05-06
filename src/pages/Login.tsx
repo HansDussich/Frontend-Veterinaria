@@ -1,23 +1,43 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Activity } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Login = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const { login, isLoading } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const { login } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const success = await login(username, password);
-    if (success) {
-      navigate('/');
+    setIsLoading(true);
+
+    try {
+      const success = await login(username, password);
+      
+      if (success) {
+        toast({
+          title: '¡Login exitoso!',
+          description: `Bienvenido, ${username}`,
+        });
+        navigate('/');
+      }
+    } catch (error) {
+      toast({
+        title: 'Error de conexión',
+        description: 'No se pudo conectar con la API.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -30,7 +50,7 @@ const Login = () => {
             <h1 className="text-3xl font-bold">VetCare Central</h1>
           </div>
         </div>
-        
+
         <Card>
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl font-bold text-center">Iniciar Sesión</CardTitle>
@@ -54,8 +74,8 @@ const Login = () => {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password">Contraseña</Label>
-                  <a 
-                    href="#" 
+                  <a
+                    href="#"
                     className="text-sm text-primary hover:underline"
                     onClick={(e) => {
                       e.preventDefault();
@@ -75,22 +95,20 @@ const Login = () => {
               </div>
             </CardContent>
             <CardFooter>
-              <Button 
-                type="submit" 
-                className="w-full" 
-                disabled={isLoading}
-              >
+              <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? (
                   <>
                     <span className="animate-spin mr-2">&#10227;</span>
                     Procesando...
                   </>
-                ) : 'Iniciar Sesión'}
+                ) : (
+                  'Iniciar Sesión'
+                )}
               </Button>
             </CardFooter>
           </form>
         </Card>
-        
+
         <p className="text-center text-sm text-muted-foreground mt-4">
           Sistema de Gestión Veterinaria
         </p>
